@@ -1,0 +1,134 @@
+<Window x:Class="Constructora.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Constructora · Certificaciones" Width="1160" Height="800"
+        MinWidth="880" MinHeight="600" Language="es-ES"
+        Closing="OnClosing" Validation.Error="OnValidationError">
+    <DockPanel Margin="16">
+        <Border DockPanel.Dock="Top" Background="#EDF3FA" Padding="12" Margin="0,0,0,12">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Sincronizar ahora" Command="{Binding SincronizarCommand}" />
+                <StackPanel>
+                    <TextBlock Text="Certificaciones de obra" FontSize="22" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding EstadoConexion}" Margin="0,5,0,0" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Padding="10" Background="#F2F2F2" Margin="0,12,0,0">
+            <TextBlock Text="{Binding Mensaje}" TextWrapping="Wrap" />
+        </Border>
+        <StackPanel DockPanel.Dock="Top">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Abrir proyecto" Command="{Binding AbrirProyectoCommand}" />
+                <TextBlock DockPanel.Dock="Left" Text="Proyecto" Width="100" VerticalAlignment="Center" />
+                <ComboBox ItemsSource="{Binding Proyectos}" SelectedItem="{Binding ProyectoSeleccionado}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock><Run Text="{Binding Codigo}" /><Run Text=" · " /><Run Text="{Binding Nombre}" /></TextBlock></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </DockPanel>
+            <DockPanel Margin="0,0,0,10">
+                <Button DockPanel.Dock="Right" Content="Nueva certificación" Command="{Binding NuevaCertificacionCommand}" />
+                <Button DockPanel.Dock="Right" Content="Abrir certificación" Command="{Binding AbrirCertificacionCommand}" />
+                <TextBlock DockPanel.Dock="Left" Text="Certificación" Width="100" VerticalAlignment="Center" />
+                <ComboBox ItemsSource="{Binding Certificaciones}" SelectedItem="{Binding CertificacionSeleccionada}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock><Run Text="N.º " /><Run Text="{Binding NumeroCertificacion}" /><Run Text=" · " /><Run Text="{Binding Fecha}" /><Run Text=" · " /><Run Text="{Binding Estado}" /></TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </DockPanel>
+        </StackPanel>
+        <TabControl>
+            <TabItem Header="Certificación">
+                <DockPanel x:Name="EditorPanel" Margin="12" IsKeyboardFocusWithinChanged="OnEditorFocusChanged">
+                    <DockPanel.Style>
+                        <Style TargetType="DockPanel">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Ocupada}" Value="True">
+                                    <Setter Property="IsEnabled" Value="False" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DockPanel.Style>
+                    <StackPanel DockPanel.Dock="Top">
+                        <WrapPanel>
+                            <TextBlock Text="Número" VerticalAlignment="Center" />
+                            <TextBox Width="85" Text="{Binding CertificacionActual.NumeroCertificacion, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" />
+                            <TextBlock Text="Fecha" Margin="12,0,5,0" VerticalAlignment="Center" />
+                            <DatePicker Width="145" Margin="4" SelectedDate="{Binding CertificacionActual.Fecha}" />
+                            <TextBlock Text="Estado" Margin="12,0,5,0" VerticalAlignment="Center" />
+                            <ComboBox Width="130" ItemsSource="{Binding Estados}" SelectedItem="{Binding CertificacionActual.Estado}" />
+                            <Button Content="Guardar en este equipo" Command="{Binding GuardarCertificacionCommand}" FontWeight="SemiBold" />
+                        </WrapPanel>
+                        <TextBlock Margin="0,8,0,12" TextWrapping="Wrap"
+                                   Text="Edite la cantidad del período. El acumulado y el avance se calculan a partir de la última certificación local. Guardar conserva los cambios en SQLite y activa el envío en segundo plano." />
+                    </StackPanel>
+                    <DataGrid ItemsSource="{Binding CertificacionActual.Lineas}" AutoGenerateColumns="False"
+                              CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="False"
+                              EnableRowVirtualization="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Partida" Binding="{Binding Codigo}" IsReadOnly="True" Width="100" />
+                            <DataGridTextColumn Header="Descripción" Binding="{Binding Descripcion}" IsReadOnly="True" Width="*" />
+                            <DataGridTextColumn Header="Ud." Binding="{Binding Unidad}" IsReadOnly="True" Width="50" />
+                            <DataGridTextColumn Header="Prevista" Binding="{Binding CantidadPrevista, StringFormat=N3}" IsReadOnly="True" Width="90" />
+                            <DataGridTextColumn Header="Anterior" Binding="{Binding CantidadAcumuladaAnterior, StringFormat=N3}" IsReadOnly="True" Width="90" />
+                            <DataGridTextColumn Header="Período" Binding="{Binding CantidadPeriodo, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="100" />
+                            <DataGridTextColumn Header="Avance %" Binding="{Binding PorcentajeAvance, StringFormat=N2}" IsReadOnly="True" Width="85" />
+                            <DataGridTextColumn Header="Importe período" Binding="{Binding ImportePeriodo, StringFormat=N2}" IsReadOnly="True" Width="115" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header><TextBlock><Run Text="Conflictos (" /><Run Text="{Binding Conflictos.Count, Mode=OneWay}" /><Run Text=")" /></TextBlock></TabItem.Header>
+                <DockPanel Margin="12">
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Text="Compare ambas versiones antes de elegir. Conservar mi versión enviará todo su contenido sobre la versión revisada del servidor. Aceptar servidor sustituirá la copia local del conflicto." />
+                        <ComboBox ItemsSource="{Binding Conflictos}" SelectedItem="{Binding ConflictoSeleccionado}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate><TextBlock><Run Text="Certificación " /><Run Text="{Binding VersionLocal.NumeroCertificacion}" /><Run Text=" · " /><Run Text="{Binding Mensaje}" /></TextBlock></DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Text="{Binding ConflictoSeleccionado.Mensaje}" TextWrapping="Wrap" Margin="4,8" />
+                        <WrapPanel>
+                            <Button Content="Conservar mi versión local" Command="{Binding ConservarVersionLocalCommand}" />
+                            <Button Content="Aceptar versión del servidor" Command="{Binding AceptarVersionServidorCommand}" />
+                        </WrapPanel>
+                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                        <DockPanel Grid.Column="0">
+                            <StackPanel DockPanel.Dock="Top" Margin="4,10">
+                                <TextBlock Text="Versión local" FontWeight="SemiBold" />
+                                <TextBlock><Run Text="Estado: " /><Run Text="{Binding ConflictoSeleccionado.VersionLocal.Estado}" /><Run Text=" · versión " /><Run Text="{Binding ConflictoSeleccionado.VersionLocal.RowVersion}" /></TextBlock>
+                            </StackPanel>
+                            <DataGrid ItemsSource="{Binding ConflictoSeleccionado.VersionLocal.Lineas}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Id partida" Binding="{Binding PartidaId}" Width="*" />
+                                    <DataGridTextColumn Header="Anterior" Binding="{Binding CantidadAcumuladaAnterior}" Width="85" />
+                                    <DataGridTextColumn Header="Período" Binding="{Binding CantidadPeriodo}" Width="85" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                        <DockPanel Grid.Column="2">
+                            <StackPanel DockPanel.Dock="Top" Margin="4,10">
+                                <TextBlock Text="Versión del servidor" FontWeight="SemiBold" />
+                                <TextBlock><Run Text="Estado: " /><Run Text="{Binding ConflictoSeleccionado.VersionServidor.Estado}" /><Run Text=" · versión " /><Run Text="{Binding ConflictoSeleccionado.VersionServidor.RowVersion}" /></TextBlock>
+                            </StackPanel>
+                            <DataGrid ItemsSource="{Binding ConflictoSeleccionado.VersionServidor.Lineas}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Id partida" Binding="{Binding PartidaId}" Width="*" />
+                                    <DataGridTextColumn Header="Anterior" Binding="{Binding CantidadAcumuladaAnterior}" Width="85" />
+                                    <DataGridTextColumn Header="Período" Binding="{Binding CantidadPeriodo}" Width="85" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Grid>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Constructora.Application/Constructora.Application.csproj" />
+    <ProjectReference Include="../Constructora.Infrastructure.Server/Constructora.Infrastructure.Server.csproj" />
+  </ItemGroup>
+</Project>

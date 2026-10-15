@@ -1,0 +1,208 @@
+name: Publicar prueba de Windows
+
+on:
+  push:
+    tags:
+      - 'v*-prueba*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prueba-windows-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  paquete:
+    if: github.repository == 'amorlanes/Certificaciones-Constructora'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Obtener el código del evento
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Instalar el SDK fijado
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '8.0.426'
+
+      - name: Comprobar los lockfiles y ejecutar pruebas locales
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet restore Constructora.sln --locked-mode
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo restaurar la solución con sus lockfiles.' }
+          dotnet restore tools/Constructora.Prueba/Constructora.Prueba.csproj --locked-mode
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo restaurar el preparador con su lockfile.' }
+          dotnet test tests/Constructora.Application.Tests/Constructora.Application.Tests.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas del módulo BIM.' }
+          dotnet test tests/Constructora.Client.Core.Tests/Constructora.Client.Core.Tests.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas del cliente local.' }
+
+      - name: Publicar WPF y preparador con sus runtimes
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = Join-Path $env:RUNNER_TEMP 'Constructora-Windows-portatil'
+          $preparador = Join-Path $package 'Preparador'
+          $scratchLock = Join-Path $env:RUNNER_TEMP 'publish-unused.lock.json'
+          # The RID needs runtime-pack assets absent from the source lockfiles.
+          # An external path and disabled lock generation preserve all committed locks.
+          $publishProperties = @(
+            '-p:PublishSingleFile=false', '-p:PublishTrimmed=false',
+            '-p:RestorePackagesWithLockFile=false', '-p:RestoreLockedMode=false',
+            "-p:NuGetLockFilePath=$scratchLock"
+          )
+          dotnet publish src/Constructora.Wpf/Constructora.Wpf.csproj -c Release -r win-x64 --self-contained true --output $package @publishProperties
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo publicar WPF.' }
+          dotnet publish tools/Constructora.Prueba/Constructora.Prueba.csproj -c Release -r win-x64 --self-contained true --output $preparador @publishProperties
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo publicar el preparador.' }
+          Copy-Item tools/Constructora.Prueba/Probar.cmd (Join-Path $package 'Probar.cmd')
+          $readme = Get-Content tools/Constructora.Prueba/LEEME.txt -Raw -Encoding utf8
+          $readme = $readme -replace 'El paquete se ha compilado para Windows desde Linux\.[\s\S]*$', "Este paquete se ha compilado en Windows mediante GitHub Actions.`r`nLa preparación SQLite y la conservación de datos se han comprobado`r`nen Windows. La interfaz visual debe validarse en un equipo Windows.`r`n"
+          Set-Content (Join-Path $package 'LEEME.txt') $readme -Encoding utf8
+          git diff --exit-code -- '**/packages.lock.json'
+          if ($LASTEXITCODE -ne 0) { throw 'La publicación alteró un lockfile protegido.' }
+
+      - name: Verificar SQLite nativo y preservar datos entre dos arranques
+        run: |
+          ./scripts/verificar-paquete-windows.ps1 -PackageDirectory (Join-Path $env:RUNNER_TEMP 'Constructora-Windows-portatil')
+
+      - name: Crear ZIP y suma SHA-256
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = Join-Path $env:RUNNER_TEMP 'Constructora-Windows-portatil'
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          $zip = Join-Path (Resolve-Path artifacts).Path 'Constructora-Windows-portatil.zip'
+          [System.IO.Compression.ZipFile]::CreateFromDirectory($package, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content "$zip.sha256" "$hash  Constructora-Windows-portatil.zip" -Encoding ascii
+
+      - name: Conservar el paquete aunque falle la publicación de la release
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Constructora-Windows-portatil
+          path: |
+            artifacts/Constructora-Windows-portatil.zip
+            artifacts/Constructora-Windows-portatil.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  release:
+    needs: paquete
+    if: always() && github.repository == 'amorlanes/Certificaciones-Constructora' && startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-prueba')
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Obtener las notas de esta versión
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # Used only by the final receipt push to the same repository.
+          persist-credentials: true
+
+      - name: Recuperar el paquete validado
+        if: needs.paquete.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Constructora-Windows-portatil
+          path: artifacts
+
+      - name: Crear o actualizar la release de prueba
+        id: publicar
+        if: needs.paquete.result == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-prueba(?:[-.][A-Za-z0-9]+)*$') {
+            throw 'El tag debe ser una versión de prueba, por ejemplo v0.1.0-prueba-windows.'
+          }
+          $zip = 'artifacts/Constructora-Windows-portatil.zip'
+          $checksum = "$zip.sha256"
+          gh release view $env:RELEASE_TAG --repo $env:RELEASE_REPOSITORY --json tagName --jq .tagName 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG $zip $checksum --repo $env:RELEASE_REPOSITORY --clobber
+          } else {
+            gh release create $env:RELEASE_TAG $zip $checksum --repo $env:RELEASE_REPOSITORY --verify-tag --prerelease --title 'Prueba local para Windows x64' --notes-file docs/NOTAS-PRUEBA-WINDOWS.md
+          }
+          if ($LASTEXITCODE -ne 0) {
+            throw 'No se pudo publicar la release. El ZIP sigue disponible en los artefactos de esta ejecución.'
+          }
+
+      - name: Guardar un recibo verificable mediante Git
+        if: always()
+        env:
+          RELEASE_OUTCOME: ${{ steps.publicar.outcome }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_SERVER: ${{ github.server_url }}
+          RELEASE_RUN_ID: ${{ github.run_id }}
+          PACKAGE_OUTCOME: ${{ needs.paquete.result }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $published = $env:RELEASE_OUTCOME -eq 'success'
+          $zip = 'artifacts/Constructora-Windows-portatil.zip'
+          $sha = if (Test-Path -LiteralPath $zip) { (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
+          $releaseUrl = "$env:RELEASE_SERVER/$env:RELEASE_REPOSITORY/releases/tag/$env:RELEASE_TAG"
+          $receipt = [ordered]@{
+            status = $(if ($published) { 'published' } else { 'failed' })
+            packageStatus = $env:PACKAGE_OUTCOME
+            tag = $env:RELEASE_TAG
+            sourceCommit = $env:GITHUB_SHA
+            releaseUrl = $(if ($published) { $releaseUrl } else { $null })
+            assetUrl = $(if ($published) { "$env:RELEASE_SERVER/$env:RELEASE_REPOSITORY/releases/download/$env:RELEASE_TAG/Constructora-Windows-portatil.zip" } else { $null })
+            sha256 = $sha
+            runUrl = "$env:RELEASE_SERVER/$env:RELEASE_REPOSITORY/actions/runs/$env:RELEASE_RUN_ID"
+            recordedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
+          }
+          $receiptPath = Join-Path $env:RUNNER_TEMP 'publicacion-windows.json'
+          $receipt | ConvertTo-Json | Set-Content -LiteralPath $receiptPath -Encoding utf8
+          $blob = git hash-object -w $receiptPath
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo guardar el recibo en Git.' }
+          $branch = 'refs/heads/estado-publicacion-windows'
+          $remote = git ls-remote --heads origin $branch
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo consultar la rama del recibo.' }
+          $parent = $null
+          if ($remote) {
+            git fetch --no-tags origin $branch
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo recuperar el recibo anterior.' }
+            $parent = git rev-parse FETCH_HEAD
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo identificar el recibo anterior.' }
+          }
+          # A separate index preserves existing receipt-branch files and the checked-out source.
+          $env:GIT_INDEX_FILE = Join-Path $env:RUNNER_TEMP ('receipt-index-' + [guid]::NewGuid().ToString('N'))
+          try {
+            if ($parent) { git read-tree $parent } else { git read-tree --empty }
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo preparar el índice del recibo.' }
+            git update-index --add --cacheinfo "100644,$blob,publicacion.json"
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo añadir el recibo.' }
+            $tree = git write-tree
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el árbol del recibo.' }
+            $arguments = @('-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'commit-tree', $tree)
+            if ($parent) { $arguments += @('-p', $parent) }
+            $arguments += @('-m', 'Registrar resultado de publicación Windows')
+            $commit = git @arguments
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el commit del recibo.' }
+            git push origin "${commit}:$branch"
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo publicar el recibo; no se ha forzado ninguna rama.' }
+          }
+          finally {
+            Remove-Item -LiteralPath $env:GIT_INDEX_FILE -Force -ErrorAction SilentlyContinue
+            Remove-Item Env:GIT_INDEX_FILE
+          }

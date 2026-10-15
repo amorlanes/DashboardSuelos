@@ -1,0 +1,24 @@
+CONSTRUCTORA - PRUEBA LOCAL PARA WINDOWS 10 U 11 DE 64 BITS
+
+1. Extrae TODO el ZIP conservando sus archivos y la carpeta Preparador.
+2. Haz doble clic en Probar.cmd y deja abierta su ventana de consola.
+3. Selecciona Vivienda de demostración y pulsa Abrir proyecto.
+4. Pulsa Nueva certificación, modifica cantidades y pulsa
+   Guardar en este equipo.
+
+No necesitas instalar .NET, Docker ni PostgreSQL para esta prueba.
+La prueba funciona sin conexión y añade un catálogo con dos partidas.
+Las certificaciones se guardan en tu equipo. La sincronización entre
+equipos necesita configurar y ejecutar la API y PostgreSQL después.
+
+Tus datos se guardan en:
+%LOCALAPPDATA%\Constructora\Certificaciones\certificaciones.db
+Puedes volver a abrirlos ejecutando otra vez Probar.cmd.
+El preparador conserva tus registros y no sustituye datos existentes.
+
+Si aparece un error, copia el mensaje de la consola. También puedes
+consultar cliente.log en la misma carpeta de datos indicada arriba.
+Mantén todos los archivos y la carpeta Preparador juntos.
+
+El paquete se ha compilado para Windows desde Linux. La preparación
+de SQLite está comprobada; la interfaz debe validarse en Windows.
