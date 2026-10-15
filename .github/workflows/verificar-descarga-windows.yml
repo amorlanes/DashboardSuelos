@@ -1,0 +1,121 @@
+name: Verificar descarga de Windows
+
+on:
+  push:
+    tags:
+      - 'auditoria-descarga-*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prueba-windows-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    if: github.repository == 'amorlanes/Certificaciones-Constructora'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Descargar el archivo publicado y comprobar su contenido
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: v0.1.0-prueba-windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/descarga-windows"
+          gh api "repos/$GH_REPO" --jq .private > "$RUNNER_TEMP/descarga-windows/privado.json"
+          gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG" > "$RUNNER_TEMP/descarga-windows/release.json"
+          gh release download "$RELEASE_TAG" --repo "$GH_REPO" \
+            --pattern Constructora-Windows-portatil.zip \
+            --pattern Constructora-Windows-portatil.zip.sha256 \
+            --dir "$RUNNER_TEMP/descarga-windows"
+          python3 - <<'PY'
+          import hashlib, json, os, struct
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          directory = Path(os.environ['RUNNER_TEMP']) / 'descarga-windows'
+          archive = directory / 'Constructora-Windows-portatil.zip'
+          digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+          expected = (directory / 'Constructora-Windows-portatil.zip.sha256').read_text().split()[0].lower()
+          if digest != expected:
+              raise SystemExit('La descarga no coincide con su SHA-256 publicado.')
+          release = json.loads((directory / 'release.json').read_text())
+          asset = next(a for a in release['assets'] if a['name'] == archive.name)
+          if asset['state'] != 'uploaded' or asset['size'] != archive.stat().st_size:
+              raise SystemExit('El archivo descargado no coincide con el asset de GitHub.')
+          with ZipFile(archive) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f'Archivo ZIP dañado: {bad}')
+              required = ['Probar.cmd', 'Constructora.Wpf.exe', 'Preparador/Constructora.Prueba.exe',
+                          'Preparador/coreclr.dll', 'Preparador/e_sqlite3.dll']
+              for name in required:
+                  if name not in z.namelist():
+                      raise SystemExit(f'El ZIP publicado no contiene {name}')
+              helper = z.read('Preparador/Constructora.Prueba.exe')
+              pe = struct.unpack_from('<I', helper, 0x3c)[0]
+              if helper[:2] != b'MZ' or helper[pe:pe+4] != b'PE\0\0' or struct.unpack_from('<H', helper, pe+4)[0] != 0x8664:
+                  raise SystemExit('El preparador no es un ejecutable Windows x64 válido.')
+              entries = z.namelist()
+          receipt = {
+              'status': 'download_verified',
+              'repositoryPrivate': json.loads((directory / 'privado.json').read_text()),
+              'tag': release['tag_name'],
+              'assetName': archive.name,
+              'assetUrl': asset['browser_download_url'],
+              'bytes': archive.stat().st_size,
+              'sha256': digest,
+              'helperPath': 'Preparador/Constructora.Prueba.exe',
+              'helperBytes': len(helper),
+              'entryCount': len(entries),
+              'requiredFilesVerified': required,
+              'runUrl': f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              'verifiedAtUtc': datetime.now(timezone.utc).isoformat()
+          }
+          (directory / 'descarga-verificada.json').write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + '\n')
+          print(json.dumps(receipt, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Registrar la comprobación para consultarla mediante Git
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+
+          def git(*args, env=None):
+              return subprocess.check_output(['git', *args], text=True, env=env).strip()
+
+          path = Path(os.environ['RUNNER_TEMP']) / 'descarga-windows' / 'descarga-verificada.json'
+          blob = git('hash-object', '-w', str(path))
+          branch = 'refs/heads/estado-publicacion-windows'
+          remote = git('ls-remote', '--heads', 'origin', branch)
+          parent = None
+          if remote:
+              git('fetch', '--no-tags', 'origin', branch)
+              parent = git('rev-parse', 'FETCH_HEAD')
+          index = Path(os.environ['RUNNER_TEMP']) / 'indice-auditoria-descarga'
+          env = dict(os.environ, GIT_INDEX_FILE=str(index))
+          try:
+              git('read-tree', parent, env=env) if parent else git('read-tree', '--empty', env=env)
+              git('update-index', '--add', '--cacheinfo', f'100644,{blob},descarga-verificada.json', env=env)
+              tree = git('write-tree', env=env)
+              args = ['-c', 'user.name=github-actions[bot]', '-c',
+                      'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'commit-tree', tree]
+              if parent:
+                  args += ['-p', parent]
+              commit = git(*args, '-m', 'Verificar descarga real del paquete Windows', env=env)
+              git('push', 'origin', f'{commit}:{branch}')
+          finally:
+              index.unlink(missing_ok=True)
+          PY
