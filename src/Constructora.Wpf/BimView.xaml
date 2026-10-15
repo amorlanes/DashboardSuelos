@@ -1,0 +1,155 @@
+<UserControl x:Class="Constructora.Wpf.BimView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Language="es-ES">
+    <DockPanel Margin="10">
+        <StackPanel DockPanel.Dock="Top">
+            <Border Padding="10" Background="#EDF3FA" Margin="0,0,0,6">
+                <StackPanel>
+                    <TextBlock FontWeight="SemiBold"><Run Text="Proyecto abierto: " /><Run Text="{Binding NombreProyectoAbierto}" /></TextBlock>
+                    <TextBlock TextWrapping="Wrap" Margin="0,5,0,0"
+                               Text="Las cantidades del modelo son referencias: el técnico valida lo ejecutado antes de certificar. Para modelos de Revit, exporte un IFC y vincúlelo aquí. Las revisiones y sus vínculos se guardan en este equipo." />
+                </StackPanel>
+            </Border>
+            <TextBlock Text="{Binding Mensaje}" TextWrapping="Wrap" Margin="4,3,4,8" />
+            <TextBlock Text="Procesando IFC… Puede seguir trabajando en la pestaña Certificación." Margin="4,0,4,6" Foreground="#315680">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers><DataTrigger Binding="{Binding Ocupada}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+        <Grid IsEnabled="{Binding Disponible}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" /><RowDefinition Height="*" MinHeight="100" />
+                <RowDefinition Height="6" /><RowDefinition Height="*" MinHeight="120" />
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0">
+                <DockPanel>
+                    <Button DockPanel.Dock="Left" Content="Vincular IFC…" Command="{Binding VincularIfcCommand}" />
+                    <Button DockPanel.Dock="Right" Content="Importar revisión…" Command="{Binding ImportarRevisionCommand}" />
+                    <Button DockPanel.Dock="Right" Content="Cargar modelo" Command="{Binding CargarModeloCommand}" />
+                    <ComboBox ItemsSource="{Binding Modelos}" SelectedItem="{Binding ModeloSeleccionado}" DisplayMemberPath="Nombre"
+                              ToolTip="Cada modelo puede contener varias revisiones IFC." MinWidth="180" />
+                </DockPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Exportar IFC original…" Command="{Binding ExportarOriginalCommand}" />
+                    <Button DockPanel.Dock="Right" Content="Cargar versión" Command="{Binding CargarVersionCommand}" />
+                    <TextBlock DockPanel.Dock="Left" Text="Versión nueva" VerticalAlignment="Center" Margin="4" />
+                    <ComboBox ItemsSource="{Binding Versiones}" SelectedItem="{Binding VersionSeleccionada}" MinWidth="200">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate><TextBlock><Run Text="V" /><Run Text="{Binding Numero}" /><Run Text=" · " /><Run Text="{Binding NombreArchivo}" /></TextBlock></DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </DockPanel>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Left" Text="Filtrar elementos" VerticalAlignment="Center" Margin="4" />
+                    <TextBox Text="{Binding FiltroElementos, UpdateSourceTrigger=PropertyChanged, Delay=200}"
+                             ToolTip="Busque por GlobalId, clase IFC, nombre, familia o tipo." />
+                </DockPanel>
+                <TextBlock Text="{Binding ResumenVersion}" TextWrapping="Wrap" Margin="4,2,4,6" />
+            </StackPanel>
+            <DataGrid Grid.Row="1" ItemsSource="{Binding ElementosFiltrados}" SelectedItem="{Binding ElementoSeleccionado}"
+                      SelectionMode="Extended" SelectionUnit="FullRow" SelectionChanged="OnElementosSeleccionados"
+                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                      EnableRowVirtualization="True" EnableColumnVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="GlobalId" Binding="{Binding GlobalId}" Width="190" />
+                    <DataGridTextColumn Header="Clase IFC" Binding="{Binding ClaseIfc}" Width="110" />
+                    <DataGridTextColumn Header="Nombre" Binding="{Binding Nombre}" Width="180" />
+                    <DataGridTextColumn Header="Familia" Binding="{Binding Familia}" Width="130" />
+                    <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="130" />
+                    <DataGridTextColumn Header="Código IFC" Binding="{Binding CodigoPartida, TargetNullValue=—}" Width="90" />
+                    <DataGridTextColumn Header="Vol. neto m³" Binding="{Binding Cantidades.VolumenNeto, StringFormat=N3, TargetNullValue=—}" Width="95" />
+                    <DataGridTextColumn Header="Vol. bruto m³" Binding="{Binding Cantidades.VolumenBruto, StringFormat=N3, TargetNullValue=—}" Width="95" />
+                    <DataGridTextColumn Header="Área neta m²" Binding="{Binding Cantidades.AreaNeta, StringFormat=N3, TargetNullValue=—}" Width="95" />
+                    <DataGridTextColumn Header="Área bruta m²" Binding="{Binding Cantidades.AreaBruta, StringFormat=N3, TargetNullValue=—}" Width="95" />
+                    <DataGridTextColumn Header="Longitud m" Binding="{Binding Cantidades.Longitud, StringFormat=N3, TargetNullValue=—}" Width="90" />
+                    <DataGridTextColumn Header="Unidades" Binding="{Binding Cantidades.Unidades, StringFormat=N3, TargetNullValue=—}" Width="85" />
+                </DataGrid.Columns>
+            </DataGrid>
+            <GridSplitter Grid.Row="2" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+            <TabControl Grid.Row="3">
+                <TabItem Header="Mediciones y partidas">
+                    <DockPanel Margin="6">
+                        <StackPanel DockPanel.Dock="Top">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Left" Text="Partida" VerticalAlignment="Center" Margin="4" />
+                                <ComboBox ItemsSource="{Binding Partidas}" SelectedItem="{Binding PartidaSeleccionada}" MinWidth="200">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate><TextBlock><Run Text="{Binding Codigo}" /><Run Text=" · " /><Run Text="{Binding Descripcion}" /><Run Text=" (" /><Run Text="{Binding Unidad}" /><Run Text=")" /></TextBlock></DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </DockPanel>
+                            <WrapPanel>
+                                <ComboBox ItemsSource="{Binding Reglas}" SelectedItem="{Binding ReglaSeleccionada}" DisplayMemberPath="Nombre" Width="190" />
+                                <TextBlock Text="Factor" VerticalAlignment="Center" Margin="4" />
+                                <TextBox Text="{Binding FactorTexto, UpdateSourceTrigger=PropertyChanged}" Width="65" ToolTip="Multiplicador positivo. 1 conserva la cantidad IFC." />
+                                <Button Content="Vincular elemento" Command="{Binding VincularElementoCommand}" />
+                                <Button Content="Vincular selección" Command="{Binding VincularSeleccionadosCommand}" />
+                                <Button Content="Desvincular medición" Command="{Binding DesvincularCommand}" />
+                            </WrapPanel>
+                            <TextBlock Text="{Binding ResumenMediciones}" TextWrapping="Wrap" Margin="4" />
+                            <TextBlock Text="Un elemento admite varias partidas. Volver a vincularlo a la misma partida actualiza su regla y factor. Un guion y un aviso indican cantidades que requieren revisión." TextWrapping="Wrap" Margin="4,0,4,6" />
+                        </StackPanel>
+                        <DataGrid ItemsSource="{Binding Mediciones}" SelectedItem="{Binding MedicionSeleccionada}" AutoGenerateColumns="False"
+                                  IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Single" EnableRowVirtualization="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Partida" Binding="{Binding Valor.CodigoPartida}" Width="80" />
+                                <DataGridTextColumn Header="Elemento" Binding="{Binding Valor.NombreElemento}" Width="140" />
+                                <DataGridTextColumn Header="GlobalId" Binding="{Binding Valor.GlobalId}" Width="190" />
+                                <DataGridTextColumn Header="Regla" Binding="{Binding ReglaDescripcion}" Width="100" />
+                                <DataGridTextColumn Header="Factor" Binding="{Binding Valor.Factor, StringFormat=N3}" Width="65" />
+                                <DataGridTextColumn Header="Cantidad" Binding="{Binding Valor.Cantidad, StringFormat=N3, TargetNullValue=—}" Width="85" />
+                                <DataGridTextColumn Header="Ud." Binding="{Binding Valor.Unidad}" Width="50" />
+                                <DataGridTextColumn Header="Precio €" Binding="{Binding Valor.PrecioUnitario, StringFormat=N2}" Width="85" />
+                                <DataGridTextColumn Header="Importe €" Binding="{Binding Valor.Importe, StringFormat=N2, TargetNullValue=—}" Width="95" />
+                                <DataGridTextColumn Header="Aviso" Binding="{Binding Valor.Aviso}" Width="300" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </TabItem>
+                <TabItem Header="Comparar revisiones">
+                    <DockPanel Margin="6">
+                        <StackPanel DockPanel.Dock="Top">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Left" Text="Versión anterior" VerticalAlignment="Center" Margin="4" />
+                                <Button DockPanel.Dock="Right" Content="Comparar revisiones" Command="{Binding CompararCommand}" />
+                                <ComboBox ItemsSource="{Binding Versiones}" SelectedItem="{Binding VersionAnterior}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate><TextBlock><Run Text="V" /><Run Text="{Binding Numero}" /><Run Text=" · " /><Run Text="{Binding NombreArchivo}" /></TextBlock></DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </DockPanel>
+                            <TextBlock Text="{Binding ResumenComparacion}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="4,6" />
+                        </StackPanel>
+                        <DataGrid ItemsSource="{Binding Cambios}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" EnableRowVirtualization="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Cambio" Binding="{Binding TipoCambio}" Width="95" />
+                                <DataGridTextColumn Header="GlobalId" Binding="{Binding Valor.GlobalId}" Width="190" />
+                                <DataGridTextColumn Header="Clase IFC" Binding="{Binding ClaseIfc}" Width="100" />
+                                <DataGridTextColumn Header="Nombre" Binding="{Binding Nombre}" Width="150" />
+                                <DataGridTextColumn Header="Vol. neto anterior m³" Binding="{Binding Valor.Anterior.Cantidades.VolumenNeto, StringFormat=N3, TargetNullValue=—}" Width="135" />
+                                <DataGridTextColumn Header="Vol. neto nuevo m³" Binding="{Binding Valor.Nuevo.Cantidades.VolumenNeto, StringFormat=N3, TargetNullValue=—}" Width="130" />
+                                <DataGridTextColumn Header="Área neta anterior m²" Binding="{Binding Valor.Anterior.Cantidades.AreaNeta, StringFormat=N3, TargetNullValue=—}" Width="135" />
+                                <DataGridTextColumn Header="Área neta nueva m²" Binding="{Binding Valor.Nuevo.Cantidades.AreaNeta, StringFormat=N3, TargetNullValue=—}" Width="130" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </TabItem>
+                <TabItem Header="Advertencias IFC">
+                    <DockPanel Margin="6">
+                        <TextBlock DockPanel.Dock="Top" Text="Revise las cantidades ausentes, unidades y avisos de importación. No se calculan cantidades geométricas que el archivo no aporta." TextWrapping="Wrap" Margin="4,4,4,10" />
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Advertencias}">
+                                <ItemsControl.ItemTemplate><DataTemplate><Expander Header="{Binding}" Margin="4"><TextBox Text="{Binding Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" /></Expander></DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </DockPanel>
+</UserControl>

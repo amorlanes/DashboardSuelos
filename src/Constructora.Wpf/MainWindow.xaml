@@ -1,6 +1,7 @@
 <Window x:Class="Constructora.Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Constructora.Wpf"
         Title="Constructora · Certificaciones" Width="1160" Height="800"
         MinWidth="880" MinHeight="600" Language="es-ES"
         Closing="OnClosing" Validation.Error="OnValidationError">
@@ -81,6 +82,7 @@
                     </DataGrid>
                 </DockPanel>
             </TabItem>
+            <TabItem Header="Modelo IFC"><local:BimView DataContext="{Binding Bim}" /></TabItem>
             <TabItem>
                 <TabItem.Header><TextBlock><Run Text="Conflictos (" /><Run Text="{Binding Conflictos.Count, Mode=OneWay}" /><Run Text=")" /></TextBlock></TabItem.Header>
                 <DockPanel Margin="12">

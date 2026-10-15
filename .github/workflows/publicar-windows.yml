@@ -47,6 +47,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas del módulo BIM.' }
           dotnet test tests/Constructora.Client.Core.Tests/Constructora.Client.Core.Tests.csproj -c Release --no-restore
           if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas del cliente local.' }
+          dotnet test tests/Constructora.Infrastructure.Ifc.Tests/Constructora.Infrastructure.Ifc.Tests.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas de importación IFC.' }
+          dotnet test tests/Constructora.Client.Bim.Tests/Constructora.Client.Bim.Tests.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas del historial BIM local.' }
+          dotnet test tests/Constructora.Bim.Integration.Tests/Constructora.Bim.Integration.Tests.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'Fallaron las pruebas completas de IFC y SQLite.' }
 
       - name: Publicar WPF y preparador con sus runtimes
         run: |
@@ -66,6 +72,7 @@ jobs:
           dotnet publish tools/Constructora.Prueba/Constructora.Prueba.csproj -c Release -r win-x64 --self-contained true --output $preparador @publishProperties
           if ($LASTEXITCODE -ne 0) { throw 'No se pudo publicar el preparador.' }
           Copy-Item tools/Constructora.Prueba/Probar.cmd (Join-Path $package 'Probar.cmd')
+          Copy-Item samples/IFC (Join-Path $package 'Modelos-ejemplo') -Recurse
           $readme = Get-Content tools/Constructora.Prueba/LEEME.txt -Raw -Encoding utf8
           $readme = $readme -replace 'El paquete se ha compilado para Windows desde Linux\.[\s\S]*$', "Este paquete se ha compilado en Windows mediante GitHub Actions.`r`nLa preparación SQLite y la conservación de datos se han comprobado`r`nen Windows. La interfaz visual debe validarse en un equipo Windows.`r`n"
           Set-Content (Join-Path $package 'LEEME.txt') $readme -Encoding utf8
@@ -83,6 +90,12 @@ jobs:
           New-Item -ItemType Directory -Path artifacts -Force | Out-Null
           $zip = Join-Path (Resolve-Path artifacts).Path 'Constructora-Windows-portatil.zip'
           [System.IO.Compression.ZipFile]::CreateFromDirectory($package, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+          try {
+            foreach ($required in @('Probar.cmd', 'Constructora.Wpf.exe', 'Preparador/Constructora.Prueba.exe', 'Modelos-ejemplo/Modelo-v1.ifc', 'Modelos-ejemplo/Modelo-v2.ifc')) {
+              if ($null -eq $archive.GetEntry($required)) { throw "Falta un archivo en el ZIP final: $required" }
+            }
+          } finally { $archive.Dispose() }
           $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content "$zip.sha256" "$hash  Constructora-Windows-portatil.zip" -Encoding ascii
 
@@ -144,6 +157,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw 'No se pudo publicar la release. El ZIP sigue disponible en los artefactos de esta ejecución.'
           }
+          $downloadDirectory = Join-Path $env:RUNNER_TEMP 'verificacion-descarga-publicada'
+          gh release download $env:RELEASE_TAG --repo $env:RELEASE_REPOSITORY --pattern Constructora-Windows-portatil.zip --dir $downloadDirectory
+          if ($LASTEXITCODE -ne 0) { throw 'La release se creó, pero su ZIP no se pudo volver a descargar.' }
+          $downloadedZip = Join-Path $downloadDirectory 'Constructora-Windows-portatil.zip'
+          if ((Get-FileHash -LiteralPath $downloadedZip -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash) {
+            throw 'El ZIP descargado de la release no coincide con el paquete validado.'
+          }
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($downloadedZip)
+          try {
+            foreach ($required in @('Probar.cmd', 'Constructora.Wpf.exe', 'Preparador/Constructora.Prueba.exe', 'Modelos-ejemplo/Modelo-v1.ifc', 'Modelos-ejemplo/Modelo-v2.ifc')) {
+              if ($null -eq $archive.GetEntry($required)) { throw "Falta un archivo en la descarga de GitHub: $required" }
+            }
+          } finally { $archive.Dispose() }
 
       - name: Guardar un recibo verificable mediante Git
         if: always()

@@ -36,19 +36,23 @@ public sealed partial class CertificacionViewModel : ObservableObject
     [ObservableProperty] private bool ocupada;
     [ObservableProperty] private bool tieneErroresEdicion;
     public bool EditorTieneFoco { get; set; }
+    public BimViewModel Bim { get; }
 
     public CertificacionViewModel(ISincronizadorService sincronizador,
-        SincronizacionEnSegundoPlano background, ILogger<CertificacionViewModel> logger)
+        SincronizacionEnSegundoPlano background, ILogger<CertificacionViewModel> logger,
+        BimViewModel bim)
     {
         _sincronizador = sincronizador;
         _background = background;
         _logger = logger;
+        Bim = bim;
         _dispatcher = Dispatcher.CurrentDispatcher;
     }
 
     public async Task InicializarAsync()
     {
         await _sincronizador.InicializarAsync(_lifetime.Token);
+        await Bim.InicializarAsync(_lifetime.Token);
         await RecargarCacheAsync(_lifetime.Token);
         EstadoConexion = "Copia local disponible; comprobando conexión…";
         _background.Actualizado += OnActualizadoAsync;
@@ -64,11 +68,14 @@ public sealed partial class CertificacionViewModel : ObservableObject
             Mensaje = "Guarde la certificación actual antes de cambiar de proyecto.";
             return;
         }
-        _proyectoAbierto = ProyectoSeleccionado.Id;
+        var project = ProyectoSeleccionado;
+        _proyectoAbierto = project.Id;
         CertificacionActual = null;
         await CargarProyectoLocalAsync(_proyectoAbierto.Value, _lifetime.Token);
+        await Bim.AbrirProyectoAsync(_proyectoAbierto.Value, Partidas.ToArray(), _lifetime.Token);
+        Bim.NombreProyectoAbierto = project.Nombre;
         _background.SeleccionarProyecto(_proyectoAbierto.Value);
-        Mensaje = $"Proyecto abierto: {ProyectoSeleccionado.Nombre}. Puede trabajar sin conexión.";
+        Mensaje = $"Proyecto abierto: {project.Nombre}. Puede trabajar sin conexión.";
     });
 
     [RelayCommand]
@@ -214,6 +221,7 @@ public sealed partial class CertificacionViewModel : ObservableObject
     {
         var selectedCertification = CertificacionSeleccionada?.Id;
         Reemplazar(Partidas, await _sincronizador.ObtenerPartidasAsync(projectId, cancellationToken));
+        Bim.ActualizarPartidas(projectId, Partidas.ToArray());
         Reemplazar(Certificaciones, (await _sincronizador.ObtenerCertificacionesAsync(projectId, cancellationToken))
             .OrderByDescending(item => item.NumeroCertificacion));
         CertificacionSeleccionada = Certificaciones.FirstOrDefault(item => item.Id == selectedCertification)
@@ -248,6 +256,7 @@ public sealed partial class CertificacionViewModel : ObservableObject
         _detenido = true;
         _lifetime.Cancel();
         _background.Actualizado -= OnActualizadoAsync;
+        await Bim.DetenerAsync();
         await _background.DetenerAsync();
         await _operaciones.WaitAsync();
         _operaciones.Release();

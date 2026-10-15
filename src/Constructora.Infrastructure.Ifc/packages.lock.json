@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "Xbim.Essentials": {
+        "type": "Direct",
+        "requested": "[6.0.578, )",
+        "resolved": "6.0.578",
+        "contentHash": "cNBmZYxh/bR58sDoKrh9ycntSttp29xyD5riDfyUBEHKeDUl3gRrPCorvCGNJdA7IIN6lF24r/MGAcj/k4Clmg==",
+        "dependencies": {
+          "Xbim.Common": "6.0.578",
+          "Xbim.IO.Esent": "6.0.578",
+          "Xbim.IO.MemoryModel": "6.0.578",
+          "Xbim.Ifc": "6.0.578",
+          "Xbim.Ifc2x3": "6.0.578",
+          "Xbim.Ifc4": "6.0.578",
+          "Xbim.Ifc4x3": "6.0.578"
+        }
+      },
+      "Microsoft.Database.ManagedEsent": {
+        "type": "Transitive",
+        "resolved": "2.0.3",
+        "contentHash": "liyUzhHNir3ix0VKzeP08VuXDWGSyYQ/6y9lTUX2bhfh/AGs56tpS8Oj08ap+idb4FIZAwDfAbA7uARTj56CmA=="
+      },
+      "Microsoft.Extensions.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "V8S3bsm50ig6JSyrbcJJ8bW2b9QLGouz+G1miK3UTaOWmMtFwNNNzUf4AleyDWUmTrWMLNnFSLEQtxmxgNQnNQ==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "Transitive",
+        "resolved": "9.0.3",
+        "contentHash": "TfaHPSe39NyL2wxkisRxXK7xvHGZYBZ+dy3r+mqGvnxKgAPdHkMu3QMQZI4pquP6W5FIQBqs8FJpWV8ffCgDqQ=="
+      },
+      "Microsoft.Extensions.Logging.Abstractions": {
+        "type": "Transitive",
+        "resolved": "8.0.2",
+        "contentHash": "nroMDjS7hNBPtkZqVBbSiQaQjWRDxITI8Y7XnDs97rqG3EbzVTNLZQf7bIeUJcaHOV8bca47s1Uxq94+2oGdxA==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2"
+        }
+      },
+      "Microsoft.Extensions.Options": {
+        "type": "Transitive",
+        "resolved": "9.0.3",
+        "contentHash": "xE7MpY70lkw1oiid5y6FbL9dVw8oLfkx8RhSNGN8sSzBlCqGn0SyT3Fqc8tZnDaPIq7Z8R9RTKlS564DS+MV3g==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.3",
+          "Microsoft.Extensions.Primitives": "9.0.3"
+        }
+      },
+      "Microsoft.Extensions.Primitives": {
+        "type": "Transitive",
+        "resolved": "9.0.3",
+        "contentHash": "yCCJHvBcRyqapMSNzP+kTc57Eaavq2cr5Tmuil6/XVnipQf5xmskxakSQ1enU6S4+fNg3sJ27WcInV64q24JsA=="
+      },
+      "Xbim.Common": {
+        "type": "Transitive",
+        "resolved": "6.0.578",
+        "contentHash": "qJ3hSZ2OV/xEAagIQhG959XCMujOgba7ljWjshFMMjAUCdLYV9r4N30i6BdDS4FwIKRXDRvMEqax7u7F0Zm70w==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection": "8.0.0",
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
+        }
+      },
+      "Xbim.Ifc": {
+        "type": "Transitive",
+        "resolved": "6.0.578",
+        "contentHash": "WFfL2ac28BTzCL9TZuP72Mk1a60aSamUfMfI7i1FUB83qeOyjcoS1rAUpq7ows1fO5zv+K1Cjxorg/GejFmBIw==",
+        "dependencies": {
+          "Xbim.Common": "6.0.578",
+          "Xbim.IO.Esent": "6.0.578",
+          "Xbim.IO.MemoryModel": "6.0.578",
+          "Xbim.Ifc2x3": "6.0.578",
+          "Xbim.Ifc4": "6.0.578",
+          "Xbim.Ifc4x3": "6.0.578"
+        }
+      },
+      "Xbim.Ifc2x3": {
+        "type": "Transitive",
+        "resolved": "6.0.578",
+        "contentHash": "1fCDo3O/ig3KSq0Eer+1zQ0EbvUe7z5ngACHJadCX2AS6AItnc768hAGapCH8QxG3Y3V0GZ0fQVuEUh8ENUEKA==",
+        "dependencies": {
+          "Xbim.Common": "6.0.578",
+          "Xbim.Ifc4": "6.0.578"
+        }
+      },
+      "Xbim.Ifc4": {
+        "type": "Transitive",
+        "resolved": "6.0.578",
+        "contentHash": "WrGQ2H8EshY/5/Lg+BTnwxlIg3zLRAx1NvEJM73t6QCzHUeujWjC98RxQqsr3Z9gO/flALx9maGstaNzleilWQ==",
+        "dependencies": {
+          "Xbim.Common": "6.0.578"
+        }
+      },
+      "Xbim.Ifc4x3": {
+        "type": "Transitive",
+        "resolved": "6.0.578",
+        "contentHash": "jY+yFUSaQt3uLVBt2ZIEg94k5UWzwywdN5/MxlS8ADXIxf2nzwlAC+pByq/1UpHoJ6Cj4I/OdmDbx99mmi5WyQ==",
+        "dependencies": {
+          "Xbim.Common": "6.0.578",
+          "Xbim.Ifc4": "6.0.578"
+        }
+      },
+      "Xbim.IO.Esent": {
+        "type": "Transitive",
+        "resolved": "6.0.578",
+        "contentHash": "pU8rKbI1WhB0HPAnuvEyEYQWwM+88dKSh6TciaKAw2x/1WBopgV50/n9nH/0mwmw98R73Gn37fNeqaBgj0PmYw==",
+        "dependencies": {
+          "Microsoft.Database.ManagedEsent": "2.0.3",
+          "Microsoft.Extensions.Options": "9.0.3",
+          "Xbim.Common": "6.0.578",
+          "Xbim.IO.MemoryModel": "6.0.578"
+        }
+      },
+      "Xbim.IO.MemoryModel": {
+        "type": "Transitive",
+        "resolved": "6.0.578",
+        "contentHash": "0nDgTk9PjxJ0vwx/lZ1JeMgVLP0TnY7VVlqvQBzysVpSLnyD8Yje6bdqugKm2xRo1mLqR0MZhHRJRa9Jp1VH3Q==",
+        "dependencies": {
+          "Xbim.Common": "6.0.578",
+          "Xbim.Ifc2x3": "6.0.578",
+          "Xbim.Ifc4": "6.0.578",
+          "Xbim.Ifc4x3": "6.0.578"
+        }
+      },
+      "constructora.application": {
+        "type": "Project",
+        "dependencies": {
+          "Constructora.Domain": "[1.0.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[8.0.2, )"
+        }
+      },
+      "constructora.domain": {
+        "type": "Project"
+      }
+    }
+  }
+}

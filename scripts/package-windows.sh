@@ -43,10 +43,12 @@ for component in ('wpf', 'launcher'):
         shutil.copy2(path, target)
 for name in ('Probar.cmd', 'LEEME.txt'):
     shutil.copy2(source / 'tools' / 'Constructora.Prueba' / name, destination / name)
+shutil.copytree(source / 'samples' / 'IFC', destination / 'Modelos-ejemplo')
 required = ('Constructora.Wpf.exe', 'hostfxr.dll', 'hostpolicy.dll',
             'coreclr.dll', 'PresentationFramework.dll', 'e_sqlite3.dll',
             'Preparador/Constructora.Prueba.exe', 'Preparador/hostfxr.dll',
-            'Preparador/hostpolicy.dll', 'Preparador/coreclr.dll', 'Preparador/e_sqlite3.dll')
+            'Preparador/hostpolicy.dll', 'Preparador/coreclr.dll', 'Preparador/e_sqlite3.dll',
+            'Modelos-ejemplo/Modelo-v1.ifc', 'Modelos-ejemplo/Modelo-v2.ifc')
 for name in required:
     if not (destination / name).is_file():
         raise SystemExit(f'Falta un componente del paquete: {name}')

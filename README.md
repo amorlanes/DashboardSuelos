@@ -11,11 +11,16 @@ src/
   Constructora.Infrastructure.Server/  EF Core 8, PostgreSQL, xmin y recibos de operaciones
   Constructora.Server/                 ASP.NET Core Web API y SignalR
   Constructora.Client.Core/            SQLite, catálogo, outbox y sincronización HTTP
+  Constructora.Infrastructure.Ifc/     Lector IFC local y normalización de cantidades
+  Constructora.Client.Bim/             Historial BIM, originales y vínculos a partidas
   Constructora.Wpf/                    Interfaz Windows, MVVM, DI y sincronización periódica
 tests/
   Constructora.Application.Tests/      Comparación BIM y valoración económica
   Constructora.Client.Core.Tests/      SQLite real y transporte HTTP controlado
   Constructora.Integration.Tests/      API, PostgreSQL real, concurrencia y SignalR
+  Constructora.Infrastructure.Ifc.Tests/ Lectura IFC, unidades y archivos inválidos
+  Constructora.Client.Bim.Tests/       Historial BIM, vínculos y archivos locales
+  Constructora.Bim.Integration.Tests/  Flujo IFC completo con SQLite real
 ```
 
 Las dependencias apuntan al dominio y a los contratos compartidos; el servidor no referencia WPF ni SQLite. La lógica local se puede probar en Linux sin cargar bibliotecas de interfaz de Windows.
@@ -164,6 +169,10 @@ Seleccionar proyecto, cargar o crear una certificación, editar mediciones y gua
 
 ## Delta Screening BIM
 
+La pestaña **Modelo IFC** vincula archivos IFC con los proyectos y las partidas,
+conserva revisiones y permite comparar sus mediciones. Consulta la
+[guía de IFC y los ejemplos](docs/IFC.md) para el flujo completo y su alcance local.
+
 `DeltaScreeningService.Comparar` recibe versión anterior, versión nueva y tarifas tipadas por código de partida. Compara por `GlobalId` en O(n), detecta altas, bajas y cambios de volumen, área o partida; las modificaciones incluyen el elemento anterior y el nuevo.
 
 ```csharp
@@ -180,8 +189,8 @@ Las tarifas distinguen m³, m² y unidad. El impacto suma coste de altas, resta 
 
 ## Validación
 
-`scripts/validate.sh` compila la solución y ejecuta los tres proyectos de pruebas. La integración utiliza bases temporales independientes y las elimina al finalizar; requiere PostgreSQL disponible. `CONSTRUCTORA_TEST_POSTGRES` permite indicar una conexión alternativa con permiso de crear bases de pruebas. SQLite se prueba con archivos reales y HTTP controlado; PostgreSQL se prueba con su proveedor real, sin sustituir la concurrencia por EF InMemory.
+`scripts/validate.sh` compila la solución y ejecuta los seis proyectos de pruebas. La integración del servidor utiliza bases temporales independientes y las elimina al finalizar; requiere PostgreSQL disponible. `CONSTRUCTORA_TEST_POSTGRES` permite indicar una conexión alternativa con permiso de crear bases de pruebas. SQLite se prueba con archivos reales y HTTP controlado; PostgreSQL se prueba con su proveedor real, sin sustituir la concurrencia por EF InMemory.
 
-Comprobaciones incluidas: 20 casos BIM, 15 del cliente local y 24 de integración (59 en total). La integración incluye dos clientes con archivos SQLite separados, sincronización con PostgreSQL, conflicto y resolución explícita, además de notificaciones SignalR verificadas después del commit.
+Las comprobaciones cubren comparación y valoración, sincronización y conflictos, importación IFC con distintas unidades, historial local y el flujo completo con los modelos de ejemplo. La integración del servidor incluye dos clientes con archivos SQLite separados, sincronización con PostgreSQL, conflicto y resolución explícita, además de notificaciones SignalR verificadas después del commit. Las pruebas BIM verifican también que importar y comparar modelos conserva las certificaciones existentes.
 
 La ejecución visual WPF queda pendiente de un equipo Windows. La publicación de este entorno cloud se realiza desde la configuración del producto; guardar scripts no lo publica ni valida su restauración en una tarea nueva.

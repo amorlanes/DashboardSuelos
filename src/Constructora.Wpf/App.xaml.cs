@@ -1,6 +1,9 @@
 using System.IO;
 using System.Windows;
 using Constructora.Client.Core;
+using Constructora.Application.Bim;
+using Constructora.Client.Bim;
+using Constructora.Infrastructure.Ifc;
 using Constructora.Wpf.Services;
 using Constructora.Wpf.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,10 +33,14 @@ public partial class App : System.Windows.Application
             services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Information)
                 .AddProvider(new ArchivoLoggerProvider(Path.Combine(dataDirectory, "cliente.log"))));
             services.AddConstructoraClient(apiUri, Path.Combine(dataDirectory, "certificaciones.db"));
+            services.AddSingleton<IImportadorIfc, ImportadorIfc>();
+            services.AddConstructoraBim(Path.Combine(dataDirectory, "bim.db"),
+                Path.Combine(dataDirectory, "ModelosBim"));
             services.AddSingleton(provider => new SincronizacionEnSegundoPlano(
                 provider.GetRequiredService<ISincronizadorService>(), apiUri,
                 provider.GetRequiredService<ILogger<SincronizacionEnSegundoPlano>>()));
             services.AddSingleton<CertificacionViewModel>();
+            services.AddSingleton<BimViewModel>();
             services.AddSingleton<MainWindow>();
             _services = services.BuildServiceProvider(new ServiceProviderOptions
                 { ValidateScopes = true, ValidateOnBuild = true });

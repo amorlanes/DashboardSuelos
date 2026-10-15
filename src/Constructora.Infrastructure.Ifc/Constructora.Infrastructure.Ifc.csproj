@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Constructora.Application/Constructora.Application.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Xbim.Essentials" Version="6.0.578" /></ItemGroup>
+</Project>
